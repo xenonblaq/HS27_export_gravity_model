@@ -1,0 +1,720 @@
+use "C:\Users\Admin\Desktop\Вышка\АПД\trade_panel_with_instruments.dta", clear
+
+cap mkdir "output"
+cap mkdir "output/graphs"
+cap mkdir "output/tables"
+
+// Список переменных с описанием и типом данных
+describe
+// Создаем панель
+xtset panel_id year
+
+// Баланс панели
+xtdes
+// Описательные статистики
+xtsum
+
+// Пропуски
+misstable summarize
+count if trim(importer)==""
+
+// Графики общей суммы экспорта 27-ого кода в миллиардах в USD и тоннах
+preserve
+	gen usd_billion = usd_value/1e9
+	collapse (sum) usd_billion, by(year)
+	line usd_billion year, title("ТН ВЭД-27: суммарный экспорт") ytitle("USD, млрд") xtitle("Год")
+	graph export "output/graphs/g01_total_usd_by_year.png", replace
+restore
+preserve
+	gen tones_million = tones_value/1e6
+	collapse (sum) tones_million, by(year)
+	line tones_million year, title("ТН ВЭД-27: суммарный экспорт (тонны)") ytitle("Тонны, млн") xtitle("Год")
+	graph export "output/graphs/g02_total_tones_by_year.png", replace
+restore
+
+// АНАЛИЗ ПРИЗНАКОВ И НЕЗАВИСИМЫХ ПЕРЕМЕННЫХ
+
+keep if tones_value > 0
+gen ln_usd = ln(usd_value  + 1)
+gen ln_tons = ln(tones_value + 1)
+gen unit_price = usd_value/tones_value
+gen ln_unit_price= ln(unit_price)
+
+// Плотность usd_value
+twoway kdensity usd_value if usd_value>0, title("Плотность: usd_value") xtitle("USD") ytitle("Плотность")
+graph export "output/graphs/g03_density_usd_value.png", replace
+// Плотность ln_usd_value
+twoway kdensity ln_usd, title("Плотность: ln(usd_value+1)") xtitle("ln(USD+1)") ytitle("Плотность")
+graph export "output/graphs/g04_density_ln_usd_value.png", replace
+// Плотность tones_value
+gen tones_million = tones_value/1e6
+twoway kdensity tones_million if tones_million>0, title("Плотность: tones_value") xtitle("Тонны, млн") ytitle("Плотность")
+graph export "output/graphs/g05_density_tones_value.png", replace
+// Плотность ln_tones_value
+twoway kdensity ln_tons, title("Плотность: ln(tones_value+1)") xtitle("ln(Тонны+1)") ytitle("Плотность")
+graph export "output/graphs/g06_density_ln_tones_value.png", replace
+// Плотность unit_price (USD/тонна)
+twoway kdensity unit_price if unit_price>0, title("Плотность: unit_price (USD/тонна)") xtitle("USD/тонна") ytitle("Плотность")
+graph export "output/graphs/g07_density_unit_price.png", replace
+// Плотность ln_unit_price
+twoway kdensity ln_unit_price, title("Плотность: ln(unit_price)") xtitle("ln(USD/тонна)") ytitle("Плотность")
+graph export "output/graphs/g08_density_ln_unit_price.png", replace
+
+
+// ВВП стран-партнеров в логарифмической шкале 
+preserve
+collapse (mean) gdp_China gdp_India gdp_Turkey gdp_Netherlands ///
+               gdp_Germany gdp_Italy gdp_Poland gdp_Ukraine ///
+               gdp_Belarus gdp_France gdp_Russia, by(year)
+twoway ///
+ (line gdp_China year, sort) ///
+ (line gdp_India year, sort) ///
+ (line gdp_Turkey year, sort) ///
+ (line gdp_Netherlands year, sort) ///
+ (line gdp_Germany year, sort) ///
+ (line gdp_Italy year, sort) ///
+ (line gdp_Poland year, sort) ///
+ (line gdp_Ukraine year, sort) ///
+ (line gdp_Belarus year, sort) ///
+ (line gdp_France year, sort) ///
+ (line gdp_Russia year, sort), ///
+ title("Временные ряды ВВП (2017–2023)") ///
+ xtitle("Год") ytitle("ВВП") ///
+ legend(order(1 "China" 2 "India" 3 "Turkey" 4 "Netherlands" ///
+              5 "Germany" 6 "Italy" 7 "Poland" 8 "Ukraine" ///
+              9 "Belarus" 10 "France" 11 "Russia") ///
+        rows(3) col(4) size(small) position(6)) ///
+ xsize(15) ysize(10) yscale(log) ylabel(100 1000 20000, format(%9.0fc))
+ graph export "output/graphs/g09_gdp_by_country.png", replace
+restore
+
+
+
+// ТОП-10 импортеров до 2022 года
+preserve
+keep if year < 2022
+collapse (sum) usd_value, by(importer)
+gsort -usd_value
+gen rank = _n
+keep if rank <= 10
+graph bar (sum) usd_value, over(importer, sort(1) descending) ///
+    bar(1, lcolor(navy) fcolor(navy)) ///
+    title("Топ-10 стран по экспорту ТН ВЭД-27 (2017–2021)") ///
+    ytitle("Сумма экспорта, USD") ///
+    blabel(bar, format(%9.0fc)) ///
+	xsize(20) ysize(10) ylabel(none)
+graph export "output/graphs/g10_top-10_before_2022.png", replace
+restore
+
+// ТОП-10 импортеров после 2022 года
+preserve
+keep if year > 2021
+collapse (sum) usd_value, by(importer)
+gsort -usd_value
+gen rank = _n
+keep if rank <= 10
+graph bar (sum) usd_value, over(importer, sort(1) descending) ///
+    bar(1, lcolor(navy) fcolor(navy)) ///
+    title("Топ-10 стран по экспорту ТН ВЭД-27 (2022–2023)") ///
+    ytitle("Сумма экспорта, USD") ///
+    blabel(bar, format(%9.0fc)) ///
+	xsize(20) ysize(10) ylabel(none)
+graph export "output/graphs/g11_top-10_after_2022.png", replace
+restore
+
+
+// Импорт недружественных стран
+preserve
+keep if unfriendly_flag == 1
+collapse (sum) usd_value, by(year)
+gen usd_billion = usd_value/1e9
+line usd_billion year, title("Импорт недружественных стран") ytitle("USD, млрд") xtitle("Год")
+graph export "output/graphs/g12_unfriendly_countries.png", replace
+restore
+
+
+
+// Экспорт по частям света
+preserve
+collapse (sum) usd_value, by(year europe asia north_america south_america oceania africa middle_east cis)
+foreach var in europe asia north_america south_america oceania africa middle_east {
+    gen usd_`var' = usd_value if `var'==1
+    by year: egen total_`var' = total(usd_`var')
+    replace total_`var' = total_`var'/1e9
+}
+
+bys year: keep if _n==1
+
+twoway ///
+	(line total_europe year, lcolor(blue) lwidth(medthick)) ///
+	(line total_asia year, lcolor(red) lwidth(medthick)) ///
+	(line total_middle_east year, lcolor(orange) lwidth(medthick)) ///
+	(line total_africa year, lcolor(black) lwidth(medthick)) ///
+	(line total_north_america year, lcolor(purple) lwidth(medthick)) ///
+	(line total_south_america year, lcolor(teal) lwidth(medthick)) ///
+	(line total_oceania year, lcolor(brown) lwidth(medthick)), ///
+	title("Экспорт ТН ВЭД-27 по регионам (в млрд USD)") ///
+	xtitle("Год") ytitle("USD, млрд") ///
+	legend(order(1 "Европа" 2 "Азия" 3 "Ближний Восток" 4 "Африка" 5 "Сев. Америка" 6 "Юж. Америка" 7 "Океания") ///
+        rows(2) size(small) position(6)) ///
+	xsize(20) ysize(10)
+graph export "output/graphs/g13_export_by_geography.png", replace
+restore
+
+
+// Экспорт по альянсам/блокам
+preserve
+collapse (sum) usd_value, by(year cis brics sco opec_plus unfriendly_flag)
+
+foreach var in cis brics sco opec_plus unfriendly_flag {
+    gen usd_`var' = usd_value if `var'==1
+    by year: egen total_`var' = total(usd_`var')
+    replace total_`var' = total_`var'/1e9
+}
+
+bys year: keep if _n==1
+
+twoway ///
+    (line total_cis year, lcolor(green) lwidth(medthick)) ///
+    (line total_brics year, lcolor(navy) lwidth(medthick)) ///
+    (line total_sco year, lcolor(orange) lwidth(medthick)) ///
+    (line total_opec_plus year, lcolor(maroon) lwidth(medthick)) ///
+    (line total_unfriendly_flag year, lcolor(black) lwidth(medthick)), ///
+    title("Экспорт ТН ВЭД-27 по альянсам (в млрд USD)") ///
+    xtitle("Год") ytitle("USD, млрд") ///
+    legend(order(1 "CIS" 2 "BRICS" 3 "SCO" 4 "OPEC+" 5 "Unfriendly") ///
+           rows(2) size(small) position(6)) ///
+    xsize(20) ysize(10)
+
+graph export "output/graphs/g14_export_by_alliances.png", replace
+restore
+
+// Зависимость экспорта от средних курсов валют
+preserve
+collapse (sum) usd_value (mean) USD EUR CNY, by(year)
+gen usd_bil = usd_value/1e9
+
+// 1) Зависимость от EUR/RUB
+twoway (scatter usd_bil EUR, msymbol(o)) ///
+       (lfit usd_bil EUR, lcolor(blue)), ///
+       title("Экспорт HS27 vs EUR/RUB") ///
+       ytitle("Экспорт, млрд USD (сумма за год)") xtitle("Курс EUR/RUB (ср. за год)") ///
+       legend(off)
+graph export "output/graphs/g15_scatter_usd_bil_vs_EUR.png", replace
+
+// 2) Зависимость от CNY/RUB
+twoway (scatter usd_bil CNY, msymbol(o)) ///
+       (lfit usd_bil CNY, lcolor(blue)), ///
+       title("Экспорт HS27 vs CNY/RUB") ///
+       ytitle("Экспорт, млрд USD (сумма за год)") xtitle("Курс CNY/RUB (ср. за год)") ///
+       legend(off)
+graph export "output/graphs/g16_scatter_usd_bil_vs_CNY.png", replace
+
+// 3) Зависимость от USD/RUB
+twoway (scatter usd_bil USD, msymbol(o)) ///
+       (lfit usd_bil USD, lcolor(blue)), ///
+       title("Экспорт HS27 vs USD/RUB") ///
+       ytitle("Экспорт, млрд USD (сумма за год)") xtitle("Курс USD/RUB (ср. за год)") ///
+       legend(off)
+graph export "output/graphs/g17_scatter_usd_bil_vs_USD.png", replace
+restore
+
+// Зависимость экспорта от PMI и URALS
+preserve
+collapse (sum) usd_value (mean) pmi urals, by(year)
+gen usd_bil = usd_value/1e9
+
+// 1) Экспорт vs PMI
+twoway (scatter usd_bil pmi, msymbol(o) mcolor(navy)) ///
+       (lfit usd_bil pmi, lcolor(maroon)), ///
+       title("Экспорт HS27 vs PMI") ///
+       ytitle("Экспорт, млрд USD (сумма за год)") ///
+       xtitle("PMI (среднегодовой)") legend(off)
+graph export "output/graphs/g18_scatter_usd_vs_PMI.png", replace
+ 
+// 2) Экспорт vs URALS
+twoway (scatter usd_bil urals, msymbol(o) mcolor(navy)) ///
+       (lfit usd_bil urals, lcolor(maroon)), ///
+       title("Экспорт HS27 vs цена нефти Urals") ///
+       ytitle("Экспорт, млрд USD (сумма за год)") ///
+       xtitle("Urals, USD/баррель") legend(off)
+graph export "output/graphs/g19_scatter_usd_vs_URALS.png", replace
+restore
+
+// График: средней цены (USD/тонна) по году против стоимости Urals за баррель как объясняющей переменной
+preserve
+    collapse (sum) usd_value (sum) tones_value (mean) urals, by(year)
+    gen total_unit_price = usd_value/(tones_value*1e6) if tones_value>0
+    twoway ///
+        (line total_unit_price year, lcolor(blue) lwidth(medthick) yaxis(1) ytitle("USD/тонна, млн", axis(1))) ///
+        (line urals year, lcolor(red) lpattern(dash) yaxis(2) ytitle("Urals", axis(2))), ///
+        title("ТН ВЭД-27: цена экспорта и Urals") ///
+        xtitle("Год") ///
+        legend(order(1 "USD/тонна (млн)" 2 "Urals"))
+    graph export "output/graphs/g20_total_unitprice_vs_urals.png", replace
+restore
+
+
+// Подготовка
+mark touse
+markout touse ln_usd ln_unit_price gdp rate ///
+               unfriendly_flag asia middle_east africa ///
+               north_america south_america oceania ///
+               cis brics opec_plus ///
+               urals USD EUR CNY pmi ///
+               year panel_id
+keep if touse
+drop touse
+
+capture drop region_lbl region
+gen str20 region_lbl = ""
+replace region_lbl = "Asia" if asia==1
+replace region_lbl = "MiddleEast" if middle_east==1
+replace region_lbl = "Africa" if africa==1
+replace region_lbl = "NorthAmerica" if north_america==1
+replace region_lbl = "SouthAmerica" if south_america==1
+replace region_lbl = "Oceania" if oceania==1
+replace region_lbl = "Europe" if region_lbl==""
+
+encode region_lbl, gen(region)
+
+tab region
+tab region, nolabel
+
+// ГЕТЕРОГЕННОСТЬ ВО ВРЕМЕНИ
+// H_0: B_1 = ... = B_T
+reg ln_usd i.year##( ///
+        c.ln_unit_price c.gdp c.rate ///
+        i.unfriendly_flag i.region i.brics i.opec_plus i.cis ///
+    ), noconstant
+
+testparm i.year#c.ln_unit_price i.year#c.gdp i.year#c.rate ///
+        i.year#i.unfriendly_flag i.year#i.region i.year#i.brics i.year#i.opec_plus i.year#i.cis
+
+
+// H_0: a_1 = ... = a_T при общих B
+reg ln_usd c.ln_unit_price c.gdp c.rate ///
+    i.unfriendly_flag i.region i.cis i.brics i.opec_plus ///
+    i.year, noconstant
+testparm i.year		
+		
+// H_0: a_1 = ... = a_T & B_1 = ... = B_T
+reg ln_usd i.year##( ///
+    c.ln_unit_price c.gdp c.rate ///
+    i.unfriendly_flag i.region i.cis i.brics i.opec_plus ///
+), noconstant
+testparm i.year ///
+        i.year#c.ln_unit_price i.year#c.gdp i.year#c.rate ///
+        i.year#i.unfriendly_flag i.year#i.region ///
+        i.year#i.cis i.year#i.brics i.year#i.opec_plus
+		
+	
+// Замена временных эффектов макрофакторами
+xtreg ln_usd ///
+    i.year#c.ln_unit_price i.year#c.gdp i.year#c.rate ///
+    i.year#1.unfriendly_flag ///
+    i.year#i.region ///  
+    i.year#1.cis i.year#1.brics i.year#1.opec_plus ///
+    c.urals c.USD c.EUR c.CNY c.pmi ///
+	i.year, fe
+testparm i.year
+
+/// Создаем временной наклон
+cap drop post2022
+gen byte post2022 = inrange(year, 2022, 2023)
+
+// ВЫБОР POOL, FE, RE
+// FE vs Pool - Тест Вальда
+reg ln_usd ///
+    i.panel_id ///
+    c.ln_unit_price##i.post2022 ///
+    c.gdp##i.post2022 ///
+    c.rate##i.post2022 ///
+    i.unfriendly_flag##i.post2022 ///
+    i.region##i.post2022 ///
+	i.cis##i.post2022 i.brics##i.post2022 i.opec_plus##i.post2022 ///
+    c.urals c.USD c.EUR c.CNY c.pmi, ///
+    noconstant
+testparm i.panel_id
+
+// RE vs Pool - Тест Бройша-Пагана
+xtreg ln_usd ///
+    c.ln_unit_price##i.post2022 ///
+    c.gdp##i.post2022 ///
+    c.rate##i.post2022 ///
+    i.unfriendly_flag##i.post2022 ///
+    i.region##i.post2022 ///
+	i.cis##i.post2022 i.brics##i.post2022 i.opec_plus##i.post2022 ///
+    c.urals c.USD c.EUR c.CNY c.pmi, ///
+    re
+xttest0 
+
+// RE vs FE - Тест Хаусмана-Мундлака
+egen mean_lnp = mean(ln_unit_price), by(panel_id)
+egen mean_gdp = mean(gdp), by(panel_id)
+egen mean_rate = mean(rate), by(panel_id)
+
+xtreg ln_usd ///
+    c.ln_unit_price##i.post2022 ///
+    c.gdp##i.post2022 ///
+    c.rate##i.post2022 ///
+    i.unfriendly_flag##i.post2022 ///
+    i.region##i.post2022 ///
+	i.cis##i.post2022 i.brics##i.post2022 i.opec_plus##i.post2022 ///
+    c.urals c.USD c.EUR c.CNY c.pmi ///
+    mean_lnp mean_gdp mean_rate, ///
+    re
+test mean_lnp mean_gdp mean_rate 
+
+
+// Обучение наиболее адекватной модели - FE.
+xtset panel_id year
+xtreg ln_usd ///
+    c.ln_unit_price##i.post2022 ///   
+    c.gdp##i.post2022 ///
+    c.rate##i.post2022 ///
+    i.unfriendly_flag##i.post2022 ///
+    i.region##i.post2022 ///        
+	i.cis##i.post2022 i.brics##i.post2022 i.opec_plus##i.post2022 ///
+	c.urals c.USD c.EUR c.CNY c.pmi,  /// 
+    fe
+	
+
+// ГЕТЕРОСКЕДАСТИЧНОСТЬ
+// Модифицированный тест Вальда
+xtreg ln_usd ///
+    c.ln_unit_price##i.post2022 ///   
+    c.gdp##i.post2022 ///
+    c.rate##i.post2022 ///
+    i.unfriendly_flag##i.post2022 ///
+    i.region##i.post2022 ///        
+	i.cis##i.post2022 i.brics##i.post2022 i.opec_plus##i.post2022 ///
+	c.urals c.USD c.EUR c.CNY c.pmi,  /// 
+    fe	
+xttest3
+
+// Тест Бройша-Пагана
+reg ln_usd ///
+    c.ln_unit_price##i.post2022 ///
+    c.gdp##i.post2022 ///
+    c.rate##i.post2022 ///
+    i.unfriendly_flag##i.post2022 ///
+    i.region##i.post2022 ///
+    i.cis##i.post2022 i.brics##i.post2022 i.opec_plus##i.post2022 ///
+    c.urals c.USD c.EUR c.CNY c.pmi ///
+    i.panel_id
+estat hettest, rhs iid
+
+
+// АВТОКОРРЕЛЯЦИЯ
+// Тест Вулдриджа
+xtset panel_id year
+xtserial ln_usd ln_unit_price gdp rate urals USD EUR CNY pmi
+
+
+// Тест Бройша-Пагана
+// Работает только на сбалансированной выборке
+preserve
+xtset panel_id year
+egen obs_count = rownonmiss(ln_usd ln_unit_price gdp rate urals USD EUR CNY pmi), strok
+bys panel_id: egen complete_obs = total(obs_count == 9)
+keep if complete_obs == 7
+
+xtreg ln_usd ln_unit_price gdp rate ///
+	urals USD EUR CNY pmi, re
+xttest1
+restore 
+
+// ПРОСТРАНСТВЕННАЯ КОРРЕЛЯЦИЯ
+// Тест Бройша-Пагана
+ssc install xttest2
+preserve
+xtset panel_id year
+egen obs_count = rownonmiss(ln_usd ln_unit_price gdp rate urals USD EUR CNY pmi), strok
+bys panel_id: egen complete_obs = total(obs_count == 9)
+keep if complete_obs == 7
+
+xtreg ln_usd ///
+    c.ln_unit_price##i.post2022 ///   
+    c.gdp##i.post2022 ///
+    c.rate##i.post2022 ///
+    i.unfriendly_flag##i.post2022 ///
+    i.region##i.post2022 ///        
+	i.cis##i.post2022 i.brics##i.post2022 i.opec_plus##i.post2022 ///
+	c.urals c.USD c.EUR c.CNY c.pmi,  /// 
+    fe
+xttest2
+restore 
+
+
+// Тест Песарана
+ssc install xtcsd
+preserve
+xtset panel_id year
+egen obs_count = rownonmiss(ln_usd ln_unit_price gdp rate urals USD EUR CNY pmi), strok
+bys panel_id: egen complete_obs = total(obs_count == 9)
+keep if complete_obs == 7
+
+xtreg ln_usd ///
+    c.ln_unit_price##i.post2022 ///   
+    c.gdp##i.post2022 ///
+    c.rate##i.post2022 ///
+    i.unfriendly_flag##i.post2022 ///
+    i.region##i.post2022 ///        
+	i.cis##i.post2022 i.brics##i.post2022 i.opec_plus##i.post2022 ///
+	c.urals c.USD c.EUR c.CNY c.pmi,  /// 
+    fe	
+xtcsd, pesaran abs
+restore 
+
+
+// УЧЕТ ПРОБЛЕМ
+// с помощью процедуры Дрисколла-Крея
+ssc install xtscc
+preserve
+xtset panel_id year
+cap drop post2022
+gen byte post2022 = inrange(year, 2022, 2023)
+
+cap drop lnp_post gdp_post rate_post
+gen lnp_post = ln_unit_price * post2022
+gen gdp_post = gdp * post2022
+gen rate_post = rate * post2022
+
+cap drop unf_post
+gen unf_post = unfriendly_flag * post2022
+
+tab region, gen(r_)
+tab region
+
+cap drop r2_post r3_post r4_post r5_post r6_post r7_post
+gen r2_post = r_2 * post2022 if _N
+gen r3_post = r_3 * post2022 if _N
+gen r4_post = r_4 * post2022 if _N
+gen r5_post = r_5 * post2022 if _N
+gen r6_post = r_6 * post2022 if _N
+gen r7_post = r_7 * post2022 if _N
+
+cap drop cis_post brics_post opec_post
+gen cis_post = cis * post2022
+gen brics_post = brics * post2022
+gen opec_post = opec_plus * post2022
+
+xtscc ln_usd ///
+      ln_unit_price lnp_post ///
+      gdp gdp_post ///
+      rate rate_post ///
+      unf_post ///
+      r2_post r3_post r4_post r5_post r6_post r7_post ///
+      cis_post brics_post opec_post ///
+      urals USD EUR CNY pmi, fe lag(1)
+restore
+
+// ЭНДОГЕННОСТЬ
+ssc install endog, replace
+ssc install xtivreg2 
+ssc install ranktest, replace
+ssc install ivreghdfe, replace
+ssc install reghdfe, replace
+ssc install ivreg2, replace
+ssc install ftools 
+preserve
+xtset panel_id year
+
+cap drop post2022
+gen byte post2022 = inrange(year, 2022, 2023)
+
+cap drop lnp_post gdp_post rate_post unf_post
+gen double lnp_post = ln_unit_price * post2022
+gen double gdp_post = gdp * post2022
+gen double rate_post = rate * post2022
+gen byte unf_post = unfriendly_flag * post2022
+
+tab region, gen(r_)
+tab region
+
+cap drop r2_post r3_post r4_post r5_post r6_post r7_post
+gen byte r2_post = r_2 * post2022
+gen byte r3_post = r_3 * post2022
+gen byte r4_post = r_4 * post2022
+gen byte r5_post = r_5 * post2022
+gen byte r6_post = r_6 * post2022
+gen byte r7_post = r_7 * post2022
+
+cap drop cis_post brics_post opec_post
+gen byte cis_post = cis * post2022
+gen byte brics_post = brics * post2022
+gen byte opec_post  = opec_plus * post2022
+
+// Инструменты для цены и их пост-взаимодействия
+cap drop freight_post dif_brent_post dif_dubai_post
+gen double freight_post = freight * post2022
+gen double dif_brent_post = dif_brent * post2022
+gen double dif_dubai_post = dif_dubai * post2022
+
+// Инструменты для gdp: логируем безопасно (если 0/отриц., ставим .)
+cap drop ln_rnna ln_emp ln_rnna_post ln_emp_post
+gen double ln_rnna = cond(rnna>0, ln(rnna), .)
+gen double ln_emp = cond(emp>0, ln(emp),  .)
+gen double ln_rnna_post = ln_rnna * post2022
+gen double ln_emp_post = ln_emp * post2022
+
+// Инструменты для rate (ТОЛЬКО DXY и VIX) + их post
+cap drop DXY_post VIX_post pl_con_post
+gen double DXY_post = DXY * post2022
+gen double VIX_post = VIX * post2022
+gen double pl_con_post = pl_con * post2022
+
+// Двухшаговый МНК
+// Hansen и Хаусман не считаются с DK - оставляем робастные
+xtivreg2 ln_usd ///
+  ( ln_unit_price lnp_post = ///
+      urals freight_post ln_rnna_post ln_emp_post) ///
+  unf_post r2_post r3_post r4_post r5_post r6_post r7_post ///
+  gdp gdp_post rate rate_post ///
+  cis_post brics_post opec_post ///
+  USD EUR CNY pmi, ///
+  fe robust first ///
+  endog(ln_unit_price lnp_post)
+restore
+
+
+// ЭНДОГЕННОСТЬ ПО ИНДИВИДУАЛЬНЫМ ЭФФЕКТАМ
+// FE + BE
+ssc install xtoverid 
+preserve
+xtset panel_id year
+
+cap drop post2022
+gen byte post2022 = inrange(year, 2022, 2023)
+
+cap drop lnp_post gdp_post rate_post unf_post
+gen double lnp_post = ln_unit_price * post2022
+gen double gdp_post = gdp * post2022
+gen double rate_post = rate * post2022
+gen byte unf_post = unfriendly_flag * post2022
+
+tab region, gen(r_)
+tab region
+
+cap drop r2_post r3_post r4_post r5_post r6_post r7_post
+gen byte r2_post = r_2 * post2022
+gen byte r3_post = r_3 * post2022
+gen byte r4_post = r_4 * post2022
+gen byte r5_post = r_5 * post2022
+gen byte r6_post = r_6 * post2022
+gen byte r7_post = r_7 * post2022
+
+cap drop cis_post brics_post opec_post
+gen byte cis_post = cis * post2022
+gen byte brics_post = brics * post2022
+gen byte opec_post = opec_plus * post2022
+
+xtreg ln_usd ///
+      ln_unit_price lnp_post ///
+      gdp gdp_post ///
+      rate rate_post ///
+      unf_post r2_post r3_post r4_post r5_post r6_post r7_post ///
+      cis_post brics_post opec_post ///
+      USD EUR CNY pmi urals, fe vce(cluster panel_id)
+predict uhat_fe, ue
+xtreg uhat_fe ///
+      unfriendly_flag cis brics opec_plus ///
+      r_2 r_3 r_4 r_5 r_6 r_7, be
+
+// RE
+xtreg ln_usd ///
+      ln_unit_price lnp_post gdp gdp_post rate rate_post ///
+      USD EUR CNY pmi urals ///
+      unfriendly_flag cis brics opec_plus r_2 r_3 r_4 r_5 r_6 r_7, ///
+      re vce(robust)
+est store re
+
+// HT1
+xthtaylor ln_usd ///
+  ln_unit_price lnp_post gdp gdp_post rate rate_post USD EUR CNY pmi urals ///
+  cis brics opec_plus r_2 r_3 r_5 r_6 r_7 r_4 unfriendly_flag, ///
+  endog(r_4) vce(robust)
+xtoverid
+est store ht1
+
+// HT2
+xthtaylor ln_usd ///
+  ln_unit_price lnp_post gdp gdp_post rate rate_post USD EUR CNY pmi urals ///
+  cis brics opec_plus r_2 r_3 r_5 r_6 r_7 r_4 unfriendly_flag, ///
+  endog(r_4 unfriendly_flag) vce(robust)
+xtoverid
+est store ht2
+
+est tab re ht2 ht1, b(%7.4f) star
+est tab re ht2 ht1, b(%7.4f) se
+restore
+
+	
+// ДИНАМИЧЕСКИЕ МОДЕЛИ.
+ssc install xtabond2
+preserve
+xtset panel_id year
+egen obs_count = rownonmiss(ln_usd ln_unit_price gdp rate urals USD EUR CNY pmi), strok
+bys panel_id: egen complete_obs = total(obs_count == 9)
+keep if complete_obs == 7
+
+cap drop post2022
+gen byte post2022 = inrange(year, 2022, 2023)
+
+cap drop lnp_post gdp_post rate_post unf_post
+gen double lnp_post = ln_unit_price * post2022
+gen double gdp_post = gdp * post2022
+gen double rate_post = rate * post2022
+gen byte unf_post = unfriendly_flag * post2022
+
+tab region, gen(r_)
+tab region
+
+cap drop r2_post r3_post r4_post r5_post r6_post
+gen byte r2_post = r_2 * post2022
+gen byte r3_post = r_3 * post2022
+gen byte r4_post = r_4 * post2022
+gen byte r5_post = r_5 * post2022
+gen byte r6_post = r_6 * post2022
+
+cap drop cis_post brics_post opec_post
+gen byte cis_post = cis * post2022
+gen byte brics_post = brics * post2022
+gen byte opec_post = opec_plus * post2022
+
+// GMM Ареллано-Бонда
+xtabond2 ln_usd                        ///
+         L.ln_usd                      ///
+         ln_unit_price lnp_post        ///
+         gdp gdp_post                  ///
+         rate rate_post                ///
+         USD EUR CNY pmi urals         ///
+         unf_post r2_post r3_post r4_post r5_post r6_post ///
+         cis_post brics_post opec_post, ///
+    gmmstyle(L.ln_usd ln_unit_price lnp_post, lag(2 3) collapse) ///
+    ivstyle(gdp gdp_post rate rate_post USD EUR CNY pmi urals     ///
+            unf_post r2_post r3_post r4_post r5_post r6_post ///
+            cis_post brics_post opec_post, equation(diff))        ///
+    twostep robust small
+
+capture drop e_res de_res
+predict double xb_gmm, xb        
+gen double e_res = ln_usd - xb_gmm if e(sample) 
+tsset panel_id year
+gen double de_res = D.e_res
+
+// Levin-Lin-Chu
+xtunitroot llc de_res,  demean lags(aic 1) kernel(bartlett nwest)
+// Harris-Tzavalis
+xtunitroot ht  de_res,  demean
+// Breitung 
+xtunitroot breitung de_res,  lags(1)
+// Hadri LM 
+xtunitroot hadri de_res, kernel(parzen 5)
+// IPS 
+xtunitroot ips de_res,  lags(aic 1)
+// Fisher-ADF
+xtunitroot fisher de_res, dfuller lags(1) drift
+xtunitroot fisher de_res, dfuller lags(1) trend
+restore
