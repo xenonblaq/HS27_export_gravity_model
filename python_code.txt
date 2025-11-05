@@ -1,0 +1,1062 @@
+import pandas as pd
+import requests
+import datetime as dt
+from tqdm import tqdm
+import xml.etree.ElementTree as ET
+from requests import ConnectTimeout
+from requests import ReadTimeout
+from pathlib import Path
+from math import radians, sin, cos, asin, sqrt
+import numpy as np
+
+
+class Make_Regressors():
+
+    countries_GDP = {
+        'Libya': 'https://cbonds.ru/indexes/48171/',
+        'Greece': 'https://cbonds.ru/indexes/54717/',
+        'Ghana': 'https://cbonds.ru/indexes/45655/',
+        'Germany': 'https://cbonds.ru/indexes/54715/',
+        'Georgia': 'https://cbonds.ru/indexes/45449/',
+        'Guatemala': 'https://cbonds.ru/indexes/45853/',
+        'Djibouti': 'https://cbonds.ru/indexes/44351/',
+        'Finland': 'https://cbonds.ru/indexes/54711/',
+        'Fiji': 'https://cbonds.ru/indexes/45025/',
+        'Estonia': 'https://cbonds.ru/indexes/44789/',
+        'El Salvador': 'https://cbonds.ru/indexes/44675/',
+        'Ecuador': 'https://cbonds.ru/indexes/44457/',
+        'Dominican Rep.': 'https://cbonds.ru/indexes/44417/',
+        'France': 'https://cbonds.ru/indexes/54713/',
+        'Denmark': 'https://cbonds.ru/indexes/54707/',
+        'Guinea': 'https://cbonds.ru/indexes/44721/',
+        'Honduras': 'https://cbonds.ru/indexes/46145/',
+        "Dem. People's Rep. of Korea": 'https://cbonds.ru/indexes/36475/',
+        'Kenya': 'https://cbonds.ru/indexes/47663/',
+        'Jordan': 'https://cbonds.ru/indexes/47535/',
+        'Kazakhstan': 'https://cbonds.ru/indexes/47585/',
+        'Japan': 'https://cbonds.ru/indexes/54735/',
+        'Jamaica': 'https://cbonds.ru/indexes/47217/',
+        "CÃ´te d'Ivoire": 'https://cbonds.ru/indexes/43757/',
+        'Haiti': 'https://cbonds.ru/indexes/45965/',
+        'Italy': 'https://cbonds.ru/indexes/54733/',
+        'Ireland': 'https://cbonds.ru/indexes/54729/',
+        'Iraq': 'https://cbonds.ru/indexes/46659/',
+        'Iran': 'https://cbonds.ru/indexes/46651/',
+        'Indonesia': 'https://cbonds.ru/indexes/54727/',
+        'Iceland': 'https://cbonds.ru/indexes/54723/',
+        'Hungary': 'https://cbonds.ru/indexes/54721/',
+        'Israel': 'https://cbonds.ru/indexes/54731/',
+        'Benin': 'https://cbonds.ru/indexes/42263/',
+        'Cyprus': 'https://cbonds.ru/indexes/43907/',
+        'Bolivia (Plurinational State of)': 'https://cbonds.ru/indexes/42367/',
+        'Belgium': 'https://cbonds.ru/indexes/54693/',
+        'Armenia': 'https://cbonds.ru/indexes/41343/',
+        'Bangladesh': 'https://cbonds.ru/indexes/41913/',
+        'Bahrain': 'https://cbonds.ru/indexes/41847/',
+        'Bahamas': 'https://cbonds.ru/indexes/41809/',
+        'Bosnia Herzegovina': 'https://cbonds.ru/indexes/42409/',
+        'Austria': 'https://cbonds.ru/indexes/54689/',
+        'Argentina': 'https://cbonds.ru/indexes/54687/',
+        'Azerbaijan': 'https://cbonds.ru/indexes/41735/',
+        'Angola': 'https://cbonds.ru/indexes/41169/',
+        'Algeria': 'https://cbonds.ru/indexes/41127/',
+        'Albania': 'https://cbonds.ru/indexes/41037/',
+        'Australia': 'https://cbonds.ru/indexes/54691/',
+        'Czechia': 'https://cbonds.ru/indexes/54705/',
+        'Brazil': 'https://cbonds.ru/indexes/54695/',
+        'Cuba': 'https://cbonds.ru/indexes/43903/',
+        'Croatia': 'https://cbonds.ru/indexes/43809/',
+        'Costa Rica': 'https://cbonds.ru/indexes/43669/',
+        'Congo': 'https://cbonds.ru/indexes/51097/',
+        'Colombia': 'https://cbonds.ru/indexes/54703/',
+        'China': 'https://cbonds.ru/indexes/54701/',
+        'Chile': 'https://cbonds.ru/indexes/54699/',
+        'Belize': 'https://cbonds.ru/indexes/42235/',
+        'Sri Lanka': 'https://cbonds.ru/indexes/52605/',
+        'Canada': 'https://cbonds.ru/indexes/54697/',
+        'Cameroon': 'https://cbonds.ru/indexes/43007/',
+        'Cambodia': 'https://cbonds.ru/indexes/43003/',
+        'Belarus': 'https://cbonds.ru/indexes/42029/',
+        'Myanmar': 'https://cbonds.ru/indexes/49375/',
+        'Bulgaria': 'https://cbonds.ru/indexes/42765/',
+        'Central African Rep.': 'https://cbonds.ru/indexes/43243/',
+        'Kyrgyzstan': 'https://cbonds.ru/indexes/47897/',
+        'Kuwait': 'https://cbonds.ru/indexes/47863/',
+        'Switzerland': 'https://cbonds.ru/indexes/54773/',
+        'Sweden': 'https://cbonds.ru/indexes/54771/',
+        'Sudan': 'https://cbonds.ru/indexes/52701/',
+        'South Sudan': 'https://cbonds.ru/indexes/52159/',
+        'Spain': 'https://cbonds.ru/indexes/54769/',
+        'South Africa': 'https://cbonds.ru/indexes/54767/',
+        'Somalia': 'https://cbonds.ru/indexes/52153/',
+        'Syria': 'https://cbonds.ru/indexes/53069/',
+        'Slovenia': 'https://cbonds.ru/indexes/54765/',
+        'Slovakia': 'https://cbonds.ru/indexes/51929/',
+        'Singapore': 'https://cbonds.ru/indexes/54763/',
+        'India': 'https://cbonds.ru/indexes/54725/',
+        'Serbia': 'https://cbonds.ru/indexes/51647/',
+        'Senegal': 'https://cbonds.ru/indexes/51539/',
+        'Saudi Arabia': 'https://cbonds.ru/indexes/54761/',
+        'Saint Lucia': 'https://cbonds.ru/indexes/60831/',
+        'Viet Nam': 'https://cbonds.ru/indexes/54633/',
+        "Lao People's Dem. Rep.": 'https://cbonds.ru/indexes/47903/',
+        'Tajikistan': 'https://cbonds.ru/indexes/53249/',
+        'Togo': 'https://cbonds.ru/indexes/53463/',
+        'Venezuela': 'https://cbonds.ru/indexes/54785/',
+        'Uzbekistan': 'https://cbonds.ru/indexes/54561/',
+        'Uruguay': 'https://cbonds.ru/indexes/54491/',
+        'Burkina Faso': 'https://cbonds.ru/indexes/42855/',
+        'USA': 'https://cbonds.ru/indexes/54783/',
+        'United Rep. of Tanzania': 'https://cbonds.ru/indexes/53275/',
+        'United Kingdom': 'https://cbonds.ru/indexes/54781/',
+        'Thailand': 'https://cbonds.ru/indexes/54775/',
+        'Egypt': 'https://cbonds.ru/indexes/44545/',
+        'Ukraine': 'https://cbonds.ru/indexes/53909/',
+        'Uganda': 'https://cbonds.ru/indexes/53789/',
+        'Turkmenistan': 'https://cbonds.ru/indexes/53767/',
+        'TÃ¼rkiye': 'https://cbonds.ru/indexes/54777/',
+        'Tunisia': 'https://cbonds.ru/indexes/53549/',
+        'United Arab Emirates': 'https://cbonds.ru/indexes/54779/',
+        'Trinidad and Tobago': 'https://cbonds.ru/indexes/53469/',
+        'North Macedonia': 'https://cbonds.ru/indexes/48491/',
+        'Yemen': 'https://cbonds.ru/indexes/54795/',
+        'Romania': 'https://cbonds.ru/indexes/51153/',
+        'Portugal': 'https://cbonds.ru/indexes/54757/',
+        'Montenegro': 'https://cbonds.ru/indexes/49163/',
+        'Rep. of Moldova': 'https://cbonds.ru/indexes/49123/',
+        'Mongolia': 'https://cbonds.ru/indexes/49187/',
+        'Mexico': 'https://cbonds.ru/indexes/54743/',
+        'Mauritius': 'https://cbonds.ru/indexes/48965/',
+        'Mauritania': 'https://cbonds.ru/indexes/48873/',
+        'Morocco': 'https://cbonds.ru/indexes/60343/',
+        'Malta': 'https://cbonds.ru/indexes/48567/',
+        'Malaysia': 'https://cbonds.ru/indexes/54741/',
+        'Madagascar': 'https://cbonds.ru/indexes/48553/',
+        'Luxembourg': 'https://cbonds.ru/indexes/54739/',
+        'Lithuania': 'https://cbonds.ru/indexes/48243/',
+        'Liberia': 'https://cbonds.ru/indexes/48153/',
+        'Latvia': 'https://cbonds.ru/indexes/47971/',
+        'Lebanon': 'https://cbonds.ru/indexes/48075/',
+        'Maldives': 'https://cbonds.ru/indexes/48765/',
+        'Qatar': 'https://cbonds.ru/indexes/51043/',
+        'Mozambique': 'https://cbonds.ru/indexes/49307/',
+        'Namibia': 'https://cbonds.ru/indexes/49409/',
+        'Poland': 'https://cbonds.ru/indexes/54755/',
+        'Philippines': 'https://cbonds.ru/indexes/50673/',
+        'Peru': 'https://cbonds.ru/indexes/54753/',
+        'Paraguay': 'https://cbonds.ru/indexes/50451/',
+        'Papua New Guinea': 'https://cbonds.ru/indexes/50415/',
+        'Panama': 'https://cbonds.ru/indexes/50409/',
+        'Pakistan': 'https://cbonds.ru/indexes/54751/',
+        'Oman': 'https://cbonds.ru/indexes/50255/',
+        'Palau': 'https://cbonds.ru/indexes/62581/',
+        'Norway': 'https://cbonds.ru/indexes/54749/',
+        'Nigeria': 'https://cbonds.ru/indexes/45353/',
+        'Nicaragua': 'https://cbonds.ru/indexes/49801/',
+        'New Zealand': 'https://cbonds.ru/indexes/54747/',
+        'Netherlands': 'https://cbonds.ru/indexes/54745/',
+        'Zambia': 'https://cbonds.ru/indexes/54845/',
+        'Nepal': 'https://cbonds.ru/indexes/49501/',
+        'Mali': 'https://cbonds.ru/indexes/48775/',
+        'Suriname': 'https://cbonds.ru/indexes/52727/',
+        'Rwanda': 'https://cbonds.ru/indexes/51389/',
+        'Seychelles': 'https://cbonds.ru/indexes/51717/',
+        'Cabo Verde': 'https://cbonds.ru/indexes/43229/',
+        'Guyana': 'https://cbonds.ru/indexes/45959/',
+        'Dominica': 'https://cbonds.ru/indexes/44369/',
+        'Ethiopia': 'https://cbonds.ru/indexes/44889/',
+        'Gabon': 'https://cbonds.ru/indexes/45373/',
+        'Brunei Darussalam': 'https://cbonds.ru/indexes/42715/',
+        'Solomon Isds': 'https://cbonds.ru/indexes/52141/',
+        'Barbados': 'https://cbonds.ru/indexes/41985/',
+        'Eswatini': 'https://cbonds.ru/indexes/52751/',
+        'Kiribati': 'https://cbonds.ru/indexes/47715/',
+        'Gambia': 'https://cbonds.ru/indexes/45417/',
+        'Malawi': 'https://cbonds.ru/indexes/48769/'
+    }
+
+    EX_CODES = {
+        "USD": "R01235",
+        "EUR": "R01239",
+        "CNY": "R01375"
+    }
+
+    ex = {
+        'LBY': 'Libya',
+        'GRC': 'Greece',
+        'GHA': 'Ghana',
+        'DEU': 'Germany',
+        'GEO': 'Georgia',
+        'GTM': 'Guatemala',
+        'DJI': 'Djibouti',
+        'FIN': 'Finland',
+        'FJI': 'Fiji',
+        'EST': 'Estonia',
+        'SLV': 'El Salvador',
+        'ECU': 'Ecuador',
+        'DOM': 'Dominican Rep.',
+        'FRA': 'France',
+        'DNK': 'Denmark',
+        'GIN': 'Guinea',
+        'HND': 'Honduras',
+        'PRK': "Dem. People's Rep. of Korea",          
+        'KEN': 'Kenya',
+        'JOR': 'Jordan',
+        'KAZ': 'Kazakhstan',
+        'JPN': 'Japan',
+        'JAM': 'Jamaica',
+        'CIV': "CÃ´te d'Ivoire",
+        'HTI': 'Haiti',
+        'ITA': 'Italy',
+        'IRL': 'Ireland',
+        'IRQ': 'Iraq',
+        'IRN': 'Iran',
+        'IDN': 'Indonesia',
+        'ISL': 'Iceland',
+        'HUN': 'Hungary',
+        'ISR': 'Israel',
+        'BEN': 'Benin',
+        'CYP': 'Cyprus',
+        'BOL': 'Bolivia (Plurinational State of)',
+        'BEL': 'Belgium',
+        'ARM': 'Armenia',
+        'BGD': 'Bangladesh',
+        'BHR': 'Bahrain',
+        'BHS': 'Bahamas',
+        'BIH': 'Bosnia Herzegovina',
+        'AUT': 'Austria',
+        'ARG': 'Argentina',
+        'AZE': 'Azerbaijan',
+        'AGO': 'Angola',
+        'DZA': 'Algeria',
+        'ALB': 'Albania',
+        'AUS': 'Australia',
+        'CZE': 'Czechia',
+        'BRA': 'Brazil',
+        'CUB': 'Cuba',                                
+        'HRV': 'Croatia',
+        'CRI': 'Costa Rica',
+        'COG': 'Congo',                               
+        'COL': 'Colombia',
+        'CHN': 'China',
+        'CHL': 'Chile',
+        'BLZ': 'Belize',
+        'LKA': 'Sri Lanka',
+        'CAN': 'Canada',
+        'CMR': 'Cameroon',
+        'KHM': 'Cambodia',
+        'BLR': 'Belarus',
+        'MMR': 'Myanmar',
+        'BGR': 'Bulgaria',
+        'CAF': 'Central African Rep.',
+        'KGZ': 'Kyrgyzstan',
+        'KWT': 'Kuwait',
+        'CHE': 'Switzerland',
+        'SWE': 'Sweden',
+        'SDN': 'Sudan',
+        'SSD': 'South Sudan',
+        'ESP': 'Spain',
+        'ZAF': 'South Africa',
+        'SOM': 'Somalia',
+        'SYR': 'Syria',
+        'SVN': 'Slovenia',
+        'SVK': 'Slovakia',
+        'SGP': 'Singapore',
+        'IND': 'India',
+        'SRB': 'Serbia',
+        'SEN': 'Senegal',
+        'SAU': 'Saudi Arabia',
+        'LCA': 'Saint Lucia',
+        'VNM': 'Viet Nam',
+        'LAO': "Lao People's Dem. Rep.",
+        'TJK': 'Tajikistan',
+        'TGO': 'Togo',
+        'VEN': 'Venezuela',
+        'UZB': 'Uzbekistan',
+        'URY': 'Uruguay',
+        'BFA': 'Burkina Faso',
+        'USA': 'USA',
+        'TZA': 'United Rep. of Tanzania',
+        'GBR': 'United Kingdom',
+        'THA': 'Thailand',
+        'EGY': 'Egypt',
+        'UKR': 'Ukraine',
+        'UGA': 'Uganda',
+        'TKM': 'Turkmenistan',                        
+        'TUR': 'TÃ¼rkiye',
+        'TUN': 'Tunisia',
+        'ARE': 'United Arab Emirates',
+        'TTO': 'Trinidad and Tobago',
+        'MKD': 'North Macedonia',
+        'YEM': 'Yemen',
+        'ROU': 'Romania',
+        'PRT': 'Portugal',
+        'MNE': 'Montenegro',
+        'MDA': 'Rep. of Moldova',
+        'MNG': 'Mongolia',
+        'MEX': 'Mexico',
+        'MUS': 'Mauritius',
+        'MRT': 'Mauritania',
+        'MAR': 'Morocco',
+        'MLT': 'Malta',
+        'MYS': 'Malaysia',
+        'MDG': 'Madagascar',
+        'LUX': 'Luxembourg',
+        'LTU': 'Lithuania',
+        'LBR': 'Liberia',
+        'LVA': 'Latvia',
+        'LBN': 'Lebanon',
+        'MDV': 'Maldives',
+        'QAT': 'Qatar',
+        'MOZ': 'Mozambique',
+        'NAM': 'Namibia',
+        'POL': 'Poland',
+        'PHL': 'Philippines',
+        'PER': 'Peru',
+        'PRY': 'Paraguay',
+        'PNG': 'Papua New Guinea',
+        'PAN': 'Panama',
+        'PAK': 'Pakistan',
+        'OMN': 'Oman',
+        'NOR': 'Norway',
+        'NGA': 'Nigeria',
+        'NIC': 'Nicaragua',
+        'NZL': 'New Zealand',
+        'NLD': 'Netherlands',
+        'ZMB': 'Zambia',
+        'NPL': 'Nepal',
+        'MLI': 'Mali',
+        'SUR': 'Suriname',
+        'RWA': 'Rwanda',
+        'SYC': 'Seychelles',
+        'CPV': 'Cabo Verde',
+        'GUY': 'Guyana',
+        'DMA': 'Dominica',
+        'ETH': 'Ethiopia',
+        'GAB': 'Gabon',
+        'BRN': 'Brunei Darussalam',
+        'SLB': 'Solomon Isds',
+        'BRB': 'Barbados',
+        'SWZ': 'Eswatini',
+        'KIR': 'Kiribati',
+        'GMB': 'Gambia',
+        'MWI': 'Malawi',
+        'CUW': 'CuraÃ§ao',                              
+        'HKG': 'China, Hong Kong SAR',                 
+        'FSM': 'FS Micronesia',                        
+        'MHL': 'Marshall Isds',                        
+        'KOR': 'Rep. of Korea',                       
+        'KNA': 'Saint Kitts and Nevis',                 
+        'PSE': 'State of Palestine',                  
+        'TAA': 'Br. Indian Ocean Terr.',               
+        'VGB': 'Br. Virgin Isds',                     
+        'BES': 'Bonaire',                               
+        'OSA': 'Other Asia, nes'                        
+    }
+
+
+    unfriendly = [
+        "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia",
+        "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia",
+        "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania",
+        "Slovakia", "Slovenia", "Spain", "Sweden", "Australia", "Albania", "Andorra", "Bahamas",
+        "United Kingdom","Iceland", "Canada", "Liechtenstein", "FS Micronesia", "Monaco", "New Zealand",
+        "Norway", "San Marino", "North Macedonia", "Singapore", "USA", "China, Taiwan Province of China",
+        "Ukraine", "Montenegro", "Switzerland", "Rep. of Korea", "Japan"
+    ]
+
+    europe = [
+        "Albania","Andorra","Austria","Belgium","Belgium-Luxembourg (...1998)","Bosnia Herzegovina",
+        "Bulgaria","Belarus","Croatia","Czechia","Czechoslovakia (...1992)",
+        "Denmark","Estonia","Finland","France","Germany","Dem. Rep. of Germany (...1990)",
+        "Fed. Rep. of Germany (...1990)","Greece","Hungary","Iceland","Ireland","Italy","Latvia","Lithuania",
+        "Luxembourg","Malta","Monaco","Montenegro","Netherlands","Netherlands Antilles (...2010)","North Macedonia",
+        "Norway","Poland","Portugal","Rep. of Moldova","Romania","Russian Federation","San Marino",
+        "Serbia","Serbia and Montenegro (...2005)","Slovakia","Slovenia","Spain","Sweden","Switzerland",
+        "Ukraine","United Kingdom","Gibraltar","Europe EFTA, nes","USSR (...1990)"
+    ]
+
+    north_america = [
+        "Antigua and Barbuda","Bahamas","Barbados","Belize","Bermuda","Canada","Costa Rica","Cuba","Dominica",
+        "Dominican Rep.","El Salvador","Greenland","Grenada","Guatemala","Haiti","Honduras","Jamaica","Mexico",
+        "Nicaragua","Panama","Saint Kitts and Nevis","Saint Lucia","Saint Vincent and the Grenadines",
+        "Trinidad and Tobago","USA","Anguilla","Montserrat","Saint Pierre and Miquelon","Saint BarthÃ©lemy",
+        "Turks and Caicos Isds","Cayman Isds","Br. Virgin Isds","US Misc. Pacific Isds", "Bonaire", "Aruba", "CuraÃ§ao"
+    ]
+
+    south_america = [
+        "Argentina","Bolivia (Plurinational State of)","Brazil","Chile","Colombia","Ecuador","Guyana",
+        "Paraguay","Peru","Suriname","Uruguay","Venezuela","Falkland Isds (Malvinas)"
+    ]
+
+    cis = [
+        "Armenia","Azerbaijan","Belarus","Kazakhstan","Kyrgyzstan",
+        "Rep. of Moldova","Russian Federation","Tajikistan","Turkmenistan","Ukraine","Uzbekistan","Georgia"
+    ]
+
+    middle_east = [
+        "Bahrain","Cyprus","Israel","Jordan","Kuwait","Lebanon","Oman",
+        "Qatar","Saudi Arabia","Syrian Arab Republic","United Arab Emirates","Yemen","Iraq",
+        "State of Palestine","TÃ¼rkiye","Iran","Egypt", "Syria", 'Afghanistan'
+    ]
+
+    africa = [
+        "Algeria","Angola","Botswana","Burundi","Cabo Verde","Cameroon","Central African Rep.","Chad",
+        "Comoros","Congo","Dem. Rep. of the Congo","CÃ´te d'Ivoire","Djibouti","Equatorial Guinea",
+        "Eritrea","Eswatini","Ethiopia","Gabon","Gambia","Ghana","Guinea","Guinea-Bissau","Kenya","Lesotho",
+        "Liberia","Libya","Madagascar","Malawi","Mali","Mauritania","Mauritius","Mayotte (Overseas France)",
+        "Morocco","Mozambique","Namibia","Niger","Nigeria","Rwanda","Sao Tome and Principe","Senegal",
+        "Seychelles","Sierra Leone","Somalia","South Africa","South Sudan","Sudan","Sudan (...2011)","Togo",
+        "Tunisia","Uganda","United Rep. of Tanzania","Zambia","Zimbabwe","Burkina Faso", "Benin", "Br. Indian Ocean Terr."
+    ]
+
+    asia = ['Armenia', 'Azerbaijan', 'Bangladesh', 'Bhutan', 'Brunei Darussalam', 'Cambodia',
+            'China', 'Christmas Isds', 'Cocos Isds', 'Georgia', 'India', 'Indonesia', 'Japan', 'Kazakhstan',
+            "Dem. People's Rep. of Korea", 'Rep. of Korea', 'Kyrgyzstan', "Lao People's Dem. Rep.", 'Malaysia',
+            'Maldives', 'Mongolia', 'Myanmar', 'Nepal', 'Pakistan', 'Philippines', 'Singapore', 'Sri Lanka', 'Tajikistan',
+            'Thailand', 'Timor-Leste', 'Turkmenistan', 'Uzbekistan', 'Viet Nam', 'China, Hong Kong SAR', 'China, Macao SAR',
+            'Other Asia, nes']
+
+    oceania = [
+        "American Samoa","Australia","Cook Isds","Fiji","Kiribati","Marshall Isds","Nauru","New Caledonia",
+        "New Zealand","Niue","Norfolk Isds","N. Mariana Isds","FS Micronesia","Palau","Papua New Guinea",
+        "Samoa","Solomon Isds","Tokelau","Tonga","Tuvalu","Vanuatu","Wallis and Futuna Isds","Guam","Pitcairn",
+        "French Polynesia","Fr. South Antarctic Terr."
+    ]
+
+    brics = [
+        "Brazil","Russian Federation","India","China","South Africa"
+    ]
+
+    sco = [
+        'China', 'India', 'Iran', 'Kazakhstan', 'Kyrgyzstan', 'Pakistan', 'Tajikistan', 'Uzbekistan'
+    ]
+    opec_plus = [
+        "Algeria","Angola","Congo","Equatorial Guinea","Gabon","Iran","Iraq","Kuwait",
+        "Libya","Nigeria","Saudi Arabia","United Arab Emirates","Venezuela",
+        "Russian Federation","Kazakhstan","Azerbaijan","Mexico","Oman","Sudan",
+        "South Sudan","Malaysia","Bahrain","Brunei Darussalam"
+    ]
+
+    def __init__(self, years=list(range(2017, 2024)), countries=["China", "India", "Turkey", "Netherlands", "Germany", "Italy", "Poland", "Ukraine", "Belarus", "France", "Russia"]):
+         self.years = years
+         self.countries = countries
+
+    def make_pmi(self) -> pd.Series:
+        START = dt.date(self.years[0], 1, 1)
+        END = dt.date(self.years[-1], 12, 1)
+
+        PMI = {}
+        for day in tqdm(pd.date_range(START, END, freq="ME"), desc="Собираю PMI"):
+            while True:
+                try:
+                    responce = requests.get(f"https://cbonds.ru/api/indexes/51339/{str(day)[:-9]}/getValue/").json()["CbondsIndexValue.numeric"]
+                    PMI[day] = responce
+                    break
+                except TypeError:
+                    break
+                except requests.ConnectionError:
+                    continue
+        
+        s = pd.DataFrame(list(PMI.items()), columns=['period', 'pmi'])
+        s["year"] = s["period"].dt.year
+        s = s.groupby("year", as_index=False)["pmi"].mean()
+        return s
+
+    def make_urals(self) -> pd.Series:
+        START = self.years[0]
+        END = self.years[-1]
+
+        urals = pd.read_csv("urals.csv")
+        urals = urals[["Дата", "Цена"]]
+        urals = urals.rename(columns={"Дата": "period", "Цена": "urals"})
+        urals["period"] = pd.to_datetime(urals["period"], format="%d.%m.%Y")
+        urals["year"] = urals["period"].dt.year
+        urals = urals[(urals["year"] >= START) & (urals["year"] <= END)]
+        urals["urals"] = urals["urals"].str.replace(',', '.').astype(float)
+        urals = urals.groupby("year", as_index=False)["urals"].mean()
+        return urals[["year", "urals"]]
+    
+    def make_gdp(self) -> pd.Series:
+        START = dt.date(self.years[0], 1, 1)
+        END = dt.date(self.years[-1] + 1, 12, 1)
+
+        data = []
+        gdps = {}
+        pb = tqdm(Make_Regressors.countries_GDP.items())
+        for country, url in pb:
+            pb.set_description(f"Собираю {country}")
+            for day in pd.date_range(START, END, freq="YE"):
+                while True:
+                    try:
+                        responce = requests.get(f"https://cbonds.ru/api/indexes/{url[-6:-1]}/{str(day)[:-9]}/getValue/").json()["CbondsIndexValue.numeric"]
+                        gdps[day] = responce
+                        break
+                    except TypeError:
+                        break
+                    except requests.ConnectionError:
+                        continue
+
+            s = pd.DataFrame(list(gdps.items()), columns=['period', 'gdp'])
+            s["year"] = s["period"].dt.year
+            s["importer"] = country
+            s = s.groupby(["year", "importer"], as_index=False)['gdp'].mean()
+            data.append(s)
+
+        return pd.concat(data)
+
+    def make_gdp_Russia(self) -> pd.Series:
+        START = dt.date(self.years[0], 1, 1)
+        END = dt.date(self.years[-1], 12, 1)
+
+        gdps = {}
+        for day in tqdm(pd.date_range(START, END, freq="YE"), desc=f"Собираю ВВП России"):
+            while True:
+                try:
+                    responce = requests.get(f"https://cbonds.ru/api/indexes/54759/{str(day)[:-9]}/getValue/").json()["CbondsIndexValue.numeric"]
+                    gdps[day] = responce
+                    break
+                except TypeError:
+                    break
+                except requests.ConnectionError:
+                    continue
+
+        s = pd.DataFrame(list(gdps.items()), columns=['period', 'gdp_Russia'])
+        s["year"] = s["period"].dt.year
+        s = s.groupby("year", as_index=False)['gdp_Russia'].mean()
+        return s
+    
+    def make_ex(self):
+        data = {}
+        
+        for curr, code in Make_Regressors.EX_CODES.items():
+            params = {"date_req1": f"01/01/{self.years[0]}", "date_req2": f"31/12/{self.years[-1]}", "VAL_NM_RQ": code}
+            while True:
+                try:
+                    r = requests.get("https://www.cbr.ru/scripts/XML_dynamic.asp", params=params, timeout=30)
+                    r.raise_for_status()
+                    break
+                except requests.ConnectionError:
+                    continue
+
+            root = ET.fromstring(r.content)
+
+            rows = []
+            for rec in root.findall("Record"):
+                d = rec.attrib["Date"]
+                v = rec.find("Value").text.replace(",", ".")
+                rows.append((pd.to_datetime(d, dayfirst=True), float(v)))
+            
+            df = pd.DataFrame(rows, columns=["year", curr]).set_index("year")
+            df = df.resample("YE").mean().round(4)
+            df.index = df.index.year
+            data[curr] = df[curr]
+        
+        result = pd.concat(data, axis=1).reset_index().rename(columns={"index":"period"})
+        return result
+    
+    def make_exchange_rates(self):
+        headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+        while True:
+            try:
+                url = "https://api.worldbank.org/v2/country/all/indicator/PA.NUS.FCRF?format=json&date=2017:2025&per_page=20000"
+                data = requests.get(url, headers=headers).json()[1]
+                break
+            except requests.ConnectionError:
+                    continue
+            
+        df = pd.DataFrame([{
+            'iso3': d['countryiso3code'],
+            'year': int(d['date']),
+            'rate': d['value']
+        } for d in data if d['value'] is not None])
+
+        df["importer"] = df["iso3"].map(Make_Regressors.ex)
+        df = df.dropna()
+        df = df[["year", "rate", "importer"]]
+        return df
+
+    def make_main_data(self) -> pd.DataFrame:
+        data = []
+        base_dir = Path("./BACI_HS17_V202501")
+        for file in tqdm(base_dir.glob("BACI*"), desc="Собираю датасет по годам", total=7):
+            tmp = pd.read_csv(file)
+            tmp = tmp[tmp["i"] == 643]
+            tmp["HS2"] = tmp["k"].astype(str).str.zfill(6).str[:2]
+            tmp = tmp[tmp["HS2"] == "27"]
+            tmp = tmp.groupby(['t', 'i', 'j', "HS2"], as_index=False)[['v', 'q']].sum()
+            tmp['v'] = tmp['v'] * 1000
+            tmp = tmp.rename(columns={'t': "year", 'j': "importer", 'v': "usd_value", 'q': "tones_value"})
+            data.append(tmp[["year", "importer", "usd_value", "tones_value"]])
+
+        data = pd.concat(data)
+        data = data.sort_values(by="year")
+        return data
+
+    def make_dummies(self, data):
+        base_dir = Path("./BACI_HS17_V202501")
+        countries = pd.read_csv(base_dir / "country_codes_V202501.csv")
+        countries = pd.Series(countries["country_name"].values, index=countries["country_code"])
+        countries = countries.to_dict()
+
+        data["importer"] = data["importer"].replace(countries)
+        data["unfriendly_flag"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.unfriendly), "unfriendly_flag"] = 1
+
+        data["asia"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.asia), "asia"] = 1
+        data["europe"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.europe), "europe"] = 1
+        data["north_america"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.north_america), "north_america"] = 1
+        data["south_america"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.south_america), "south_america"] = 1
+        data["oceania"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.oceania), "oceania"] = 1
+        data["africa"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.africa), "africa"] = 1
+        data["middle_east"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.middle_east), "middle_east"] = 1
+
+        data["cis"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.cis), "cis"] = 1
+        data["brics"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.brics), "brics"] = 1
+        data["opec_plus"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.opec_plus), "opec_plus"] = 1
+        data["sco"] = 0
+        data.loc[data["importer"].isin(Make_Regressors.sco), "sco"] = 1
+
+        data["sanctions"] = 0
+        data.loc[data["year"].isin([2022, 2023]), "sanctions"] = 1
+        data["covid"] = 0
+        data.loc[data["year"].isin([2019, 2020, 2021]), "covid"] = 1
+        return data
+    
+    def run(self):
+        pmi = self.make_pmi()
+        gdp = self.make_gdp()
+        gdp_Russia = self.make_gdp_Russia()
+        urals = self.make_urals()
+        print("Собираю валютные курсы")
+        ex = self.make_ex()
+        exchange_rates = self.make_exchange_rates()
+
+        main = self.make_main_data()
+        main = self.make_dummies(main)
+
+        first = pd.merge(main, gdp, on=["year", "importer"], how="inner")
+        second = pd.merge(first, exchange_rates, on=["year", "importer"], how="inner")
+        third = pd.merge(second, ex, on="year", how="inner")
+        final = pd.merge(third, pmi, on="year", how="inner")
+        very_final = pd.merge(final, urals, on="year", how="inner")
+        return pd.merge(very_final, gdp_Russia, on="year", how="inner")
+
+
+
+data = Make_Regressors().run()
+df = data.copy()
+df["panel_id"] = df["importer"].astype("category").cat.codes + 1
+df = df.sort_values(["panel_id","year"])
+
+var_labels = {
+    "panel_id": "Panel identifier (country id)",
+    "importer": "Country",
+    "year": "Year",
+    "usd_value": "Export value (USD)",
+    "tones_value": "Export value (TONES)",
+    "unfriendly_flag": "Dummy of unfriendly country to Russia",
+    "asia": "Dummy of asian country",
+    "europe": "Dummy of europian country",
+    "north_america": "Dummy of north american country",
+    "south_america": "Dummy of south american country",
+    "oceania": "Dummy of oceanic country",
+    "africa": "Dummy of african country",
+    "middle_east": "Dummy of middle east country",
+    "cis": "Dummy of CIS included",
+    "brics": "Dummy of BRICS included",
+    "opec_plus": "Dummy of OPEC+ included",
+    "sco": "Dummy of SCO included",
+    "covid": "Dummy of COVID year",
+    "sanctions": "Dummy of post-2022 year",
+    "gdp": "Partner country GDP",
+    "rate": "Partner currency per USD (avg)",
+    "USD": "Average USD/RUB (CBR) per year",
+    "EUR": "Average EUR/RUB (CBR) per year",
+    "CNY": "Average CNY/RUB (CBR) per year",
+    "pmi": "Average Russian manufacturing PMI per year",
+    "urals": "Average Urals oil price per year",
+    "gdp_Russia": "Russian GDP"
+}
+
+df.to_stata(
+    "trade_panel.dta",
+    write_index=False,
+    version=118,
+    variable_labels=var_labels
+)
+
+# Инструменты
+
+data = pd.read_stata("trade_panel.dta")
+
+class Instruments():
+
+    country_map = {
+        'Afghanistan': 'Afghanistan',
+        'Andorra': 'Andorra',
+        'Anguilla': 'Anguilla',
+        'Antigua and Barbuda': 'Antigua and Barbuda',
+        'Aruba': 'Aruba',
+        'Belgium and Luxembourg': 'Belgium',   
+        'Bermuda': 'Bermuda',
+        'Bhutan': 'Bhutan',
+        'Bolivia': 'Bolivia (Plurinational State of)',
+        'Bosnia and Herzegovina': 'Bosnia Herzegovina',
+        'Botswana': 'Botswana',
+        'British Virgin Islands': 'Virgin Isds', 
+        'Burma': 'Myanmar',                      
+        'Burundi': 'Burundi',
+        'Cape Verde': 'Cabo Verde',
+        'Cayman Islands': 'Cayman Isds',         
+        'Central African Republic': 'Central African Rep.',
+        'Chad': 'Chad',
+        'Christmas Island': 'Christmas Is.',    
+        'Cocos (Keeling) Islands': 'Cocos Isds',
+        'Comoros': 'Comoros',
+        'Congo (Democratic Republic of the)': 'Congo, Dem. Rep.',
+        'Cook Islands': 'Cook Isds',
+        'Cuba': 'Cuba',
+        'Czech Republic': 'Czechia',
+        "Côte d'Ivoire": "CÃ´te d'Ivoire",
+        'Dominican Republic': 'Dominican Rep.',
+        'East Timor': 'Timor-Leste',  
+        'Equatorial Guinea': 'Equatorial Guinea',
+        'Eritrea': 'Eritrea',
+        'Faroe Islands': 'Faroe Isds',
+        'French Guiana': 'French Guiana',
+        'French Polynesia': 'French Polynesia',
+        'French Southern Antartic territories': 'French Southern Terr.',
+        'Gibraltar': 'Gibraltar',
+        'Greenland': 'Greenland',
+        'Grenada': 'Grenada',
+        'Guadeloupe': 'Guadeloupe',
+        'Guinea-Bissau': 'Guinea-Bissau',
+        'Hong Kong': 'Hong Kong',
+        'Kazakstan': 'Kazakhstan',
+        'Korea': 'Republic of Korea',
+        "Korea, Dem. People's Rep. of": 'Dem. People’s Rep. Korea',
+        "Lao People's Democratic Republic": "Lao People's Dem. Rep.",
+        'Lesotho': 'Lesotho',
+        'Libyan Arab Jamahiriya': 'Libya',
+        'Macau (Aomen)': 'Macao',
+        'Macedonia (the former Yugoslav Rep. of)': 'North Macedonia',
+        'Marshall Islands': 'Marshall Isds',
+        'Martinique': 'Martinique',
+        'Micronesia (Federated States of)': 'Micronesia (Fed. States of)',
+        'Moldova, Rep.of': 'Rep. of Moldova',
+        'Nauru': 'Nauru',
+        'New Caledonia': 'New Caledonia',
+        'Niger': 'Niger',
+        'Niue': 'Niue',
+        'Norfolk Island': 'Norfolk Is.',
+        'Palau': 'Palau',
+        'Palestine': 'Palestine',
+        'Puerto Rico': 'Puerto Rico',
+        'Reunion': 'Réunion',
+        'Russian Federation': 'Russia',
+        'Saint Kitts and Nevis': 'Saint Kitts and Nevis',
+        'Saint Vincent and the Grenadines': 'Saint Vincent and the Grenadines',
+        'Samoa': 'Samoa',
+        'San Marino': 'San Marino',
+        'Sao Tome and Principe': 'Sao Tome and Principe',
+        'Serbia and Montenegro': 'Serbia',   
+        'Sierra Leone': 'Sierra Leone',
+        'Solomon Islands': 'Solomon Isds',
+        'Sudan': 'South Sudan',
+        'Swaziland': 'Eswatini',
+        'Syrian Arab Republic': 'Syria',
+        'Taiwan': 'Taiwan',
+        'Tanzania, United Rep. of ': 'United Rep. of Tanzania',
+        'Turkey': 'TÃ¼rkiye',
+        'Turkmenistan': 'Turkmenistan',
+        'Turks and Caicos Islands': 'Turks and Caicos Isds',
+        'Tuvalu': 'Tuvalu',
+        'United States of America': 'USA',
+        'Vanuatu': 'Vanuatu',
+        'Western Sahara': 'Western Sahara',
+        'Zimbabwe': 'Zimbabwe'
+    }       
+
+    map_first_to_second = {
+        'Bosnia and Herzegovina': 'Bosnia Herzegovina',
+        'Central African Republic': 'Central African Rep.',
+        "Côte d'Ivoire": "CÃ´te d'Ivoire",
+        'Dominica': 'Dominica',
+        'Dominican Republic': 'Dominican Rep.',
+        'Iran (Islamic Republic of)': 'Iran',
+        "Lao People's DR": "Lao People's Dem. Rep.",
+        'Libya': 'Libya',
+        'Papua New Guinea': 'Papua New Guinea',
+        'Republic of Moldova': 'Rep. of Moldova',
+        'Solomon Isds': 'Solomon Isds',
+        'Somalia': 'Somalia',
+        'South Sudan': 'South Sudan',
+        'Syrian Arab Republic': 'Syria',
+        'Türkiye': 'TÃ¼rkiye',
+        'United States': 'USA',
+        'U.R. of Tanzania: Mainland': 'United Rep. of Tanzania',
+        'Venezuela (Bolivarian Republic of)': 'Venezuela',
+    }
+
+    targets = [
+        'Dominica', 'Guyana', 'Kiribati', 'Libya',
+        'Papua New Guinea', 'Solomon Isds', 'Somalia',
+        'South Sudan', 'Sudan'
+    ]
+
+    proxy_candidates = {
+        'Dominica': ['Saint Lucia', 'Grenada', 'Barbados'],
+        'Guyana': ['Suriname', 'Trinidad and Tobago', 'Jamaica'],
+        'Kiribati': ['Fiji', 'Vanuatu', 'Micronesia (Fed. States of)'],
+        'Libya': ['Algeria', 'Iraq', 'Tunisia'],
+        'Papua New Guinea': ['Fiji', 'Vanuatu', 'Solomon Isds'],
+        'Solomon Isds': ['Vanuatu', 'Fiji', 'Papua New Guinea'],
+        'Somalia': ['Djibouti', 'Eritrea', 'Ethiopia'],
+        'South Sudan': ['Uganda', 'Ethiopia', 'Sudan'],
+        'Sudan': ['Ethiopia', 'Egypt', 'Kenya'],
+    }
+
+    def __init__(self, years=list(range(2017, 2024))):
+        self.years = years
+
+    def DXY(self):
+        DXY = pd.read_csv("DXY.csv")
+        DXY = DXY[["Date", "Price"]]
+        DXY = DXY.rename(columns={"Date": "period", "Price": "DXY"})
+        DXY["period"] = pd.to_datetime(DXY["period"], format="%d/%m/%Y")
+        DXY["year"] = DXY["period"].dt.year
+        DXY = DXY[(DXY["year"] >= 2017) & (DXY["year"] <= 2023)]
+        DXY["DXY"] = DXY["DXY"].astype(float)
+        DXY = DXY.groupby("year", as_index=False)["DXY"].mean()
+        DXY = DXY[["year", "DXY"]]
+        return DXY
+    
+    def VIX(self):
+        VIX = pd.read_csv("VIX.csv")
+        VIX = VIX[["Date", "Price"]]
+        VIX = VIX.rename(columns={"Date": "period", "Price": "VIX"})
+        VIX["period"] = pd.to_datetime(VIX["period"], format="%d/%m/%Y")
+        VIX["year"] = VIX["period"].dt.year
+        VIX = VIX[(VIX["year"] >= 2017) & (VIX["year"] <= 2023)]
+        VIX["VIX"] = VIX["VIX"].astype(float)
+        VIX = VIX.groupby("year", as_index=False)["VIX"].mean()
+        VIX = VIX[["year", "VIX"]]
+        return VIX
+
+    def urals(self):
+        urals = pd.read_csv("urals.csv")
+        urals = urals[["Дата", "Цена"]]
+        urals = urals.rename(columns={"Дата": "period", "Цена": "urals"})
+        urals["period"] = pd.to_datetime(urals["period"], format="%d.%m.%Y")
+        urals["year"] = urals["period"].dt.year
+        urals = urals[(urals["year"] >= 2017) & (urals["year"] <= 2023)]
+        urals["urals"] = urals["urals"].str.replace(',', '.').astype(float)
+        urals = urals.groupby("year", as_index=False)["urals"].mean()
+        return urals[["year", "urals"]]
+    
+    def brent(self):
+        brent = pd.read_csv("brent.csv")
+        brent = brent[["Date", "Price"]]
+        brent = brent.rename(columns={"Date": "period", "Price": "brent"})
+        brent["period"] = pd.to_datetime(brent["period"], format="%d/%m/%Y")
+        brent["year"] = brent["period"].dt.year
+        brent = brent[(brent["year"] >= 2017) & (brent["year"] <= 2023)]
+        brent["brent"] = brent["brent"].astype(float)
+        brent = brent.groupby("year", as_index=False)["brent"].mean()
+        brent = brent[["year", "brent"]]
+        return brent
+
+    def dubai(self):
+        dubai = pd.read_csv("dubai.csv")
+        dubai = dubai[["Date", "Price"]]
+        dubai = dubai.rename(columns={"Date": "period", "Price": "dubai"})
+        dubai["period"] = pd.to_datetime(dubai["period"], format="%d/%m/%Y")
+        dubai["year"] = dubai["period"].dt.year
+        dubai = dubai[(dubai["year"] >= 2017) & (dubai["year"] <= 2023)]
+        dubai["dubai"] = dubai["dubai"].astype(float)
+        dubai = dubai.groupby("year", as_index=False)["dubai"].mean()
+        dubai = dubai[["year", "dubai"]]
+        return dubai
+
+    def freight(self):
+        baltic = pd.read_csv("Baltic Dirty Tanker.csv")
+        baltic = baltic[["Дата", "Цена"]]
+        baltic = baltic.rename(columns={"Дата": "period", "Цена": "baltic"})
+        baltic["period"] = pd.to_datetime(baltic["period"], format="%d.%m.%Y")
+        baltic["year"] = baltic["period"].dt.year
+        baltic = baltic[(baltic["year"] >= 2017) & (baltic["year"] <= 2023)]
+        baltic["baltic"] = baltic["baltic"].str.replace('.', '').str.replace(',', '.').astype(float)
+        baltic = baltic.groupby("year", as_index=False)["baltic"].mean()
+        baltic = baltic[["year", "baltic"]]
+        return baltic
+
+    def dist_to_ports(self):
+        dist_cepii = pd.read_excel("dist_cepii.xls")
+        dist_cepii["country"] = dist_cepii["country"].map(Instruments.country_map).fillna(dist_cepii["country"])
+        dist_cepii = dist_cepii[["country", "continent", "lat", "lon"]]
+        dist_cepii.loc[dist_cepii["country"] == "French Southern Terr.", 'continent'] = 'Pacific'
+
+        countries = [
+            'Benin', 'Bolivia (Plurinational State of)', 'Brazil', 'Canada',
+            "CÃ´te d'Ivoire", 'Germany', 'Kazakhstan', 'Nigeria', 'Australia',
+            'South Africa', 'TÃ¼rkiye', 'USA', 'United Rep. of Tanzania'
+        ]
+
+        mask = dist_cepii["country"].isin(countries)
+
+        dist_cepii = pd.concat([
+            dist_cepii.loc[~mask],                              
+            dist_cepii.loc[mask].drop_duplicates("country")     
+        ], ignore_index=True)
+
+        ports = pd.read_csv("russian_oil_ports_by_direction.csv")
+        ports = ports[["continent", "lat", "lon"]]
+
+        dist_to_russian_ports = pd.merge(dist_cepii, ports, on='continent', how='inner')
+
+
+        def haversine_km(lat1, lon1, lat2, lon2):
+            R = 6371.0088 
+            lat1, lon1, lat2, lon2 = map(radians, [lat1,lon1,lat2,lon2])
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            a = sin(dlat/2)**2 + cos(lat1)*cos(lat2)*sin(dlon/2)**2
+            return 2*R*asin(a**0.5)
+
+        dist_to_russian_ports["distance_km"] = dist_to_russian_ports.apply(
+            lambda r: haversine_km(r["lat_x"], r["lon_x"], r["lat_y"], r["lon_y"]),
+            axis=1
+        )
+
+        dist_to_russian_ports["ln_distance"] = np.log(dist_to_russian_ports["distance_km"])
+        years = pd.DataFrame({"year": list(range(2017, 2024))})
+        dist_by_year = (
+            dist_to_russian_ports.assign(_k=1)
+            .merge(years.assign(_k=1), on="_k")
+            .drop(columns="_k")
+        )
+
+        dist_by_year = dist_by_year[["year", "country", "ln_distance"]]
+
+        serbia = dist_by_year.loc[dist_by_year["country"]=="Serbia"]
+        new_rows = serbia.copy()
+        new_rows["country"] = "Montenegro"
+        dist_by_year = pd.concat([dist_by_year, new_rows], ignore_index=True)
+
+        sudan = dist_by_year.loc[dist_by_year["country"]=="South Sudan"]
+        new_rows = sudan.copy()
+        new_rows["country"] = "Sudan"
+        dist_by_year = pd.concat([dist_by_year, new_rows], ignore_index=True)
+        return dist_by_year
+    
+    def freight_by_country(self):
+        dist_by_year = self.dist_to_ports()
+        freight = self.freight()
+
+        freight_by_country = pd.merge(dist_by_year, freight, on='year', how='inner')
+        freight_by_country["freight"] = freight_by_country["baltic"] * freight_by_country["ln_distance"]
+        freight_by_country["importer"] = freight_by_country["country"]
+        return freight_by_country[["importer", "year", "freight"]]
+    
+    def capital_labour(self):
+        years = range(2017, 2024)
+        pwt = (pd.read_excel("pwt110.xlsx", sheet_name="Data")
+                .query("2017 <= year <= 2023")[["country","year","rnna","emp","pl_con"]]
+                .copy())
+
+        def proxy_vals(year, cands):
+            blk = pwt[(pwt["year"]==year) & (pwt["country"].isin(cands))]
+            if blk.empty:
+                blk = pwt[pwt["country"].isin(cands) & pwt["year"].between(year-2, year+2)]
+            if blk.empty:
+                return {"rnna": np.nan, "emp": np.nan, "pl_con": np.nan}
+            return blk[["rnna","emp","pl_con"]].mean(numeric_only=True).to_dict()
+
+        rows = []
+        for tgt in Instruments.targets: 
+            cands = Instruments.proxy_candidates.get(tgt, [])
+            for y in years:
+                rows.append({"country": tgt, "year": y, **proxy_vals(y, cands)})
+
+        add_df = pd.DataFrame(rows)
+        pwt = pd.concat([pwt, add_df], ignore_index=True).sort_values(["country","year"])
+        pwt[["rnna","emp","pl_con"]] = (
+            pwt.groupby("country")[["rnna","emp","pl_con"]]
+            .transform(lambda g: g.ffill().bfill())
+        )
+        pwt = pwt[~pwt[["rnna","emp","pl_con"]].isna().all(axis=1)]
+        pwt["importer"] = pwt["country"].map(Instruments.map_first_to_second).fillna(pwt["country"])
+        return pwt[["importer","year","rnna","emp","pl_con"]]
+
+    def make_instruments(self):
+        df = self.capital_labour()
+        df = pd.merge(df, self.urals(), on="year", how="inner")
+        df = pd.merge(df, self.brent(), on="year", how="inner")
+        df = pd.merge(df, self.dubai(), on="year", how="inner")
+        df = pd.merge(df, self.DXY(), on="year", how="inner")
+        df = pd.merge(df, self.VIX(), on="year", how="inner")
+        df = pd.merge(df, self.freight_by_country(), on=["year", "importer"], how="inner")
+        df["dif_brent"] = df["brent"] - df["urals"]
+        df["dif_dubai"] = df["dubai"] - df["urals"]
+        df = df.drop(columns=["brent", "urals", "dubai"])
+        return df
+
+instruments = Instruments()
+df = instruments.make_instruments()
+full = pd.merge(data, df, on=["year", "importer"], how="inner")
+full = full.drop_duplicates(subset=["importer", "year"], keep="first")
+
+var_labels = {
+    "panel_id": "Panel identifier (country id)",
+    "importer": "Country",
+    "year": "Year",
+    "usd_value": "Export value (USD)",
+    "tones_value": "Export value (TONES)",
+    "unfriendly_flag": "Dummy of unfriendly country to Russia",
+    "asia": "Dummy of asian country",
+    "europe": "Dummy of europian country",
+    "north_america": "Dummy of north american country",
+    "south_america": "Dummy of south american country",
+    "oceania": "Dummy of oceanic country",
+    "africa": "Dummy of african country",
+    "middle_east": "Dummy of middle east country",
+    "cis": "Dummy of CIS included",
+    "brics": "Dummy of BRICS included",
+    "opec_plus": "Dummy of OPEC+ included",
+    "sco": "Dummy of SCO included",
+    "covid": "Dummy of COVID year",
+    "sanctions": "Dummy of post-2022 year",
+    "gdp": "Partner country GDP",
+    "rate": "Partner currency per USD (avg)",
+    "USD": "Average USD/RUB (CBR) per year",
+    "EUR": "Average EUR/RUB (CBR) per year",
+    "CNY": "Average CNY/RUB (CBR) per year",
+    "pmi": "Average Russian manufacturing PMI per year",
+    "urals": "Average Urals oil price per year",
+    'rnna': "Capital stock at constant 2021 national prices (in mil. 2021US$)",
+    'emp': "Number of persons engaged (in millions)",
+    'pl_con': "Price level of CCON (PPP/XR), price level of USA GDPo in 2021=1",
+    'DXY': "USA Dollar index",
+    'VIX': "Volatility index",
+    'freight': "Baltic Dirty Tanker * dist to Russian port",
+    'dif_brent': "Brent_t - Urals_t",
+    'dif_dubai': "Dubai_t - Urals_t"
+}
+
+full.to_stata(
+    "trade_panel_with_instruments.dta",
+    write_index=False,
+    version=118,
+    variable_labels=var_labels
+)
